@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Horas - Viandas Magma</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-gray-100 font-sans min-h-screen flex items-center justify-center p-4">
+
+    <div id="app" class="w-full max-w-4xl bg-white p-6 rounded-xl shadow-xl">
+        
+        <div id="section-login" class="space-y-6 max-w-md mx-auto py-8">
+            <div class="text-center">
+                <h1 class="text-3xl font-extrabold text-gray-900">Viandas Magma</h1>
+                <p class="text-sm text-gray-500 mt-1">Conectado a Base de Datos Real</p>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700">Usuario o DNI</label>
+                    <input type="text" id="login-user" placeholder="Ej: viandasmagma" class="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700">Contraseña</label>
+                    <input type="password" id="login-pass" placeholder="••••••••" class="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm">
+                </div>
+                <button onclick="login()" class="w-full py-2.5 px-4 text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow font-medium cursor-pointer">
+                    Ingresar
+                </button>
+            </div>
+        </div>
+
+        <div id="section-empleado" class="hidden space-y-6">
+            <div class="flex justify-between items-center border-b pb-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800">Panel de Empleado</h2>
+                    <p class="text-gray-600 font-medium">👋 Hola, <span id="emp-nombre" class="text-blue-600"></span></p>
+                </div>
+                <button onclick="logout()" class="text-sm text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-md cursor-pointer">Cerrar Sesión</button>
+            </div>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <button onclick="fichar('entrada')" class="p-6 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl border font-bold text-lg cursor-pointer">Fichar Entrada</button>
+                <button onclick="fichar('salida')" class="p-6 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl border font-bold text-lg cursor-pointer">Fichar Salida</button>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl border">
+                <div class="p-3 bg-white rounded-lg shadow-sm border">
+                    <p class="text-xs font-semibold text-gray-400 uppercase">Horas Pendientes</p>
+                    <p id="emp-resumen-horas" class="text-2xl font-bold text-gray-700">0.00 hrs</p>
+                </div>
+                <div class="p-3 bg-white rounded-lg shadow-sm border">
+                    <p class="text-xs font-semibold text-gray-400 uppercase">Dinero Acumulado (Pendiente)</p>
+                    <p id="emp-resumen-dinero" class="text-2xl font-bold text-emerald-600">$0.00</p>
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <h3 class="text-lg font-bold text-gray-800">Mi Historial de Fichadas</h3>
+                <div class="overflow-x-auto border rounded-lg bg-white">
+                    <table class="w-full text-sm text-left border-collapse">
+                        <thead class="bg-gray-50 text-gray-700 text-xs uppercase border-b">
+                            <tr>
+                                <th class="p-3">Fecha</th>
+                                <th class="p-3">Entrada</th>
+                                <th class="p-3">Salida</th>
+                                <th class="p-3">Horas</th>
+                                <th class="p-3">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="emp-tabla-cuerpo" class="divide-y"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="section-admin" class="hidden space-y-8">
+            <div class="flex justify-between items-center border-b pb-4">
+                <div>
+                    <h2 class="text-2xl font-black text-red-600">⚙️ Panel Administrador</h2>
+                    <p class="text-xs text-gray-500">Viandas Magma</p>
+                </div>
+                <button onclick="logout()" class="text-sm text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-md cursor-pointer">Cerrar Sesión</button>
+            </div>
+
+            <div class="bg-gray-50 p-5 rounded-xl border space-y-4">
+                <h3 class="text-lg font-bold text-gray-800">+ Registrar Nuevo Empleado</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                    <input type="text" id="adm-new-nombre" placeholder="Nombre y Apellido" class="p-2 text-sm border rounded bg-white">
+                    <input type="text" id="adm-new-dni" placeholder="DNI (Será su Usuario)" class="p-2 text-sm border rounded bg-white">
+                    <input type="password" id="adm-new-pass" placeholder="Contraseña" class="p-2 text-sm border rounded bg-white">
+                    <input type="text" id="adm-new-tel" placeholder="Teléfono (ej: 5491133334444)" class="p-2 text-sm border rounded bg-white">
+                </div>
+                <button onclick="crearEmpleado()" class="bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded shadow hover:bg-blue-700 cursor-pointer">Guardar Empleado</button>
+            </div>
+
+            <div class="space-y-4">
+                <div class="flex flex-wrap gap-3 items-end bg-gray-50 p-4 rounded-xl border">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600">Desde Fecha</label>
+                        <input type="date" id="adm-filtro-desde" class="mt-1 p-2 text-sm border rounded bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600">Hasta Fecha</label>
+                        <input type="date" id="adm-filtro-hasta" class="mt-1 p-2 text-sm border rounded bg-white">
+                    </div>
+                    <button onclick="renderizarAdmin()" class="bg-gray-800 text-white text-sm font-medium px-4 py-2 rounded shadow hover:bg-gray-900 cursor-pointer">Filtrar Rango</button>
+                </div>
+
+                <div class="overflow-x-auto border rounded-lg bg-white">
+                    <table class="w-full text-sm text-left border-collapse">
+                        <thead class="bg-gray-100 text-gray-700 uppercase text-xs border-b">
+                            <tr>
+                                <th class="p-3">Empleado</th>
+                                <th class="p-3 w-32">Valor Hora ($)</th>
+                                <th class="p-3">Horas en Filtro</th>
+                                <th class="p-3">Total a Pagar</th>
+                                <th class="p-3 text-right">Acciones de Pago</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adm-tabla-cuerpo" class="divide-y"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="space-y-3 bg-slate-50 p-5 rounded-xl border">
+                <h3 class="text-lg font-bold text-slate-800">✏️ Editar Horarios / Fichadas de cada Día</h3>
+                <div class="overflow-x-auto border rounded-lg bg-white">
+                    <table class="w-full text-sm text-left border-collapse">
+                        <thead class="bg-slate-200 text-slate-700 text-xs border-b">
+                            <tr>
+                                <th class="p-2.5">Empleado</th>
+                                <th class="p-2.5">Fecha</th>
+                                <th class="p-2.5">Hora Entrada (ISO)</th>
+                                <th class="p-2.5">Hora Salida (ISO)</th>
+                                <th class="p-2.5">Estado</th>
+                                <th class="p-2.5 text-right">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adm-tabla-edicion-fichadas" class="divide-y"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ⚠️ REEMPLAZA ESTA URL CON LA DE TU PROYECTO (La encuentras en settings -> API)
+        const SUPABASE_URL = "https://TU_PROYECTO.supabase.co";
+        // Aquí ya coloqué de manera segura tu clave pública anon
+        const SUPABASE_ANON_KEY = "sb_publishable_MhRwEMyJoPi90pXhxjMOsA_WlIuiUxf";
+        
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        let currentSession = null;
+
+        window.onload = function() {
+            const hoy = new Date();
+            const haceUnMes = new Date();
+            haceUnMes.setDate(hoy.getDate() - 30);
+            document.getElementById('adm-filtro-hasta').value = hoy.toISOString().split('T')[0];
+            document.getElementById('adm-filtro-desde').value = haceUnMes.toISOString().split('T')[0];
+        };
+
+        // --- AUTENTICACIÓN ---
+        async function login() {
+            const userInp = document.getElementById('login-user').value.trim();
+            const passInp = document.getElementById('login-pass').value.trim();
+
+            const { data: usuario, error } = await _supabase
+                .from('empleados')
+                .select('*')
+                .eq('dni', userInp)
+                .eq('contrasena', passInp)
+                .maybeSingle();
+
+            if (error || !usuario) {
+                alert('⚠️ Usuario o contraseña incorrectos en Supabase.');
+                return;
+            }
+
+            currentSession = usuario;
+            document.getElementById('section-login').classList.add('hidden');
+
+            if (usuario.es_admin) {
+                document.getElementById('section-admin').classList.remove('hidden');
+                renderizarAdmin();
+            } else {
+                document.getElementById('section-empleado').classList.remove('hidden');
+                document.getElementById('emp-nombre').innerText = usuario.nombre_apellido;
+                renderizarEmpleado();
+            }
+        }
+
+        function logout() {
+            currentSession = null;
+            document.getElementById('section-admin').classList.add('hidden');
+            document.getElementById('section-empleado').classList.add('hidden');
+            document.getElementById('section-login').classList.remove('hidden');
+            document.getElementById('login-pass').value = '';
+        }
+
+        // --- LÓGICA DE EMPLEADO ---
+        async function renderizarEmpleado() {
+            const { data: fichadas } = await _supabase
+                .from('fichadas')
+                .select('*')
+                .eq('empleado_id', currentSession.id)
+                .order('entrada', { ascending: false });
+
+            const tablaCuerpo = document.getElementById('emp-tabla-cuerpo');
+            tablaCuerpo.innerHTML = '';
+            let acumHorasPendientes = 0;
+
+            fichadas.forEach(f => {
+                if (f.estado_pago === 'Pendiente' && f.horas_trabajadas) {
+                    acumHorasPendientes += parseFloat(f.horas_trabajadas);
+                }
+                const badgeColor = f.estado_pago === 'Abonado' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800';
+                
+                const fecha = f.entrada ? f.entrada.substring(0,10) : '-';
+                const horaEntrada = f.entrada ? f.entrada.substring(11,16) : '-';
+                const horaSalida = f.salida ? f.salida.substring(11,16) : '-';
+
+                tablaCuerpo.innerHTML += `
+                    <tr>
+                        <td class="p-3 font-medium">${fecha}</td>
+                        <td class="p-3">${horaEntrada}</td>
+                        <td class="p-3">${horaSalida}</td>
+                        <td class="p-3 font-semibold">${f.horas_trabajadas ? parseFloat(f.horas_trabajadas).toFixed(2) + ' hrs' : 'En curso'}</td>
+                        <td class="p-3"><span class="px-2 py-0.5 rounded-full text-xs font-bold ${badgeColor}">${f.estado_pago}</span></td>
+                    </tr>
+                `;
+            });
+
+            document.getElementById('emp-resumen-horas').innerText = `${acumHorasPendientes.toFixed(2)} hrs`;
+            const totalDinero = acumHorasPendientes * (currentSession.valor_hora || 0);
+            document.getElementById('emp-resumen-dinero').innerText = `$${totalDinero.toLocaleString('es-AR', {minimumFractionDigits: 2})}`;
+        }
+
+        async function fichar(tipo) {
+            const ahoraIso = new Date().toISOString();
+
+            if (tipo === 'entrada') {
+                const { data: abierta } = await _supabase
+                    .from('fichadas')
+                    .select('*')
+                    .eq('empleado_id', currentSession.id)
+                    .is('salida', null)
+                    .maybeSingle();
+
+                if (abierta) {
+                    alert('⚠️ Ya tienes una entrada abierta.');
+                    return;
+                }
+
+                await _supabase.from('fichadas').insert({
+                    empleado_id: currentSession.id,
+                    entrada: ahoraIso,
+                    estado_pago: 'Pendiente'
+                });
+                alert('✅ Entrada guardada en Supabase.');
+
+            } else {
+                const { data: abierta } = await _supabase
+                    .from('fichadas')
+                    .select('*')
+                    .eq('empleado_id', currentSession.id)
+                    .is('salida', null)
+                    .maybeSingle();
+
+                if (!abierta) {
+                    alert('⚠️ No tienes ninguna entrada abierta.');
+                    return;
+                }
+
+                const entradaDate = new Date(abierta.entrada);
+                const salidaDate = new Date(ahoraIso);
+                const totalHoras = parseFloat(((salidaDate - entradaDate) / (1000 * 60 * 60)).toFixed(2));
+
+                await _supabase.from('fichadas')
+                    .update({ salida: ahoraIso, horas_trabajadas: totalHoras })
+                    .eq('id', abierta.id);
+
+                alert(`✅ Salida guardada. Horas: ${totalHoras}`);
+            }
+            renderizarEmpleado();
+        }
+
+        // --- LÓGICA DE ADMINISTRADOR ---
+        async function crearEmpleado() {
+            const nombre = document.getElementById('adm-new-nombre').value.trim();
+            const dni = document.getElementById('adm-new-dni').value.trim();
+            const pass = document.getElementById('adm-new-pass').value.trim();
+            const tel = document.getElementById('adm-new-tel').value.trim();
+
+            if (!nombre || !dni || !pass) { alert('❌ Rellena los campos.'); return; }
+
+            await _supabase.from('empleados').insert({
+                nombre_apellido: nombre, dni: dni, contrasena: pass, telefono: tel, valor_hora: 0, es_admin: false
+            });
+
+            alert('✅ Guardado en Supabase.');
+            renderizarAdmin();
+        }
+
+        async function actualizarValorHora(empId, nuevoValor) {
+            await _supabase.from('empleados').update({ valor_hora: parseFloat(nuevoValor) || 0 }).eq('id', empId);
+            renderizarAdmin();
+        }
+
+        async function renderizarAdmin() {
+            const { data: emps } = await _supabase.from('empleados').select('*').eq('es_admin', false);
+            const { data: todasLasFichadas } = await _supabase.from('fichadas').select('*');
+            
+            const desde = document.getElementById('adm-filtro-desde').value;
+            const hasta = document.getElementById('adm-filtro-hasta').value;
+            const cuerpo = document.getElementById('adm-tabla-cuerpo');
+            cuerpo.innerHTML = '';
+
+            emps.forEach(emp => {
+                const filtradas = todasLasFichadas.filter(f => {
+                    if (f.empleado_id !== emp.id || !f.entrada) return false;
+                    const fFecha = f.entrada.substring(0,10);
+                    return (!desde || fFecha >= desde) && (!hasta || fFecha <= hasta);
+                });
+
+                const horas = filtradas.reduce((sum, f) => sum + (parseFloat(f.horas_trabajadas) || 0), 0);
+                const total = horas * (emp.valor_hora || 0);
+
+                cuerpo.innerHTML += `
+                    <tr>
+                        <td class="p-3"><strong>${emp.nombre_apellido}</strong><br><span class="text-xs text-gray-400">Tel: ${emp.telefono || '-'}</span></td>
+                        <td class="p-3"><input type="number" value="${emp.valor_hora}" onchange="actualizarValorHora(${emp.id}, this.value)" class="w-24 p-1 border rounded text-center"></td>
+                        <td class="p-3 font-semibold">${horas.toFixed(2)} hrs</td>
+                        <td class="p-3 font-bold text-emerald-600">$${total.toFixed(2)}</td>
+                        <td class="p-3 text-right space-x-1">
+                            <button onclick="registrarPagoPeriodo(${emp.id}, '${desde}', '${hasta}')" class="bg-emerald-600 text-white text-xs px-2 py-1 rounded cursor-pointer">Registrar Pago</button>
+                            <button onclick="enviarWhatsAppRecibo('${emp.telefono}', '${desde}', '${hasta}', ${horas}, ${total})" class="bg-teal-500 text-white text-xs px-2 py-1 rounded cursor-pointer">WhatsApp</button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            renderizarEditorFichadas(emps, todasLasFichadas);
+        }
+
+        async function registrarPagoPeriodo(empId, desde, hasta) {
+            if (!confirm("¿Marcar este rango como 'Abonado' en Supabase?")) return;
+            
+            const { data: fichadas } = await _supabase.from('fichadas').select('*').eq('empleado_id', empId);
+            
+            for (let f of fichadas) {
+                const fFecha = f.entrada.substring(0,10);
+                if ((!desde || fFecha >= desde) && (!hasta || fFecha <= hasta) && f.estado_pago === 'Pendiente') {
+                    await _supabase.from('fichadas').update({ estado_pago: 'Abonado' }).eq('id', f.id);
+                }
+            }
+            alert("✅ Pagos actualizados en la base de datos.");
+            renderizarAdmin();
+        }
+
+        function enviarWhatsAppRecibo(telefono, desde, hasta, horas, total) {
+            if (!telefono) { alert("❌ No hay teléfono."); return; }
+            const rango = (desde && hasta) ? `${desde} al ${hasta}` : "el período reciente";
+            const mensaje = `hola! te abonamos las fechas ${rango} , con la cantidad de horas que sumaste que es ${horas.toFixed(2)} con un monto total de $${total.toFixed(2)} / por favor confirma recepcion! Gracias`;
+            window.open(`https://api.whatsapp.com/send?phone=${telefono.replace(/\s+/g, '')}&text=${encodeURIComponent(mensaje)}`, '_blank');
+        }
+
+        function renderizarEditorFichadas(emps, fichadas) {
+            const cuerpo = document.getElementById('adm-tabla-edicion-fichadas');
+            cuerpo.innerHTML = '';
+            
+            fichadas.forEach(f => {
+                const emp = emps.find(e => e.id === f.empleado_id);
+                if (!emp) return;
+
+                cuerpo.innerHTML += `
+                    <tr>
+                        <td class="p-2 text-xs font-bold">${emp.nombre_apellido}</td>
+                        <td class="p-2 text-xs">${f.entrada ? f.entrada.substring(0,10) : '-'}</td>
+                        <td class="p-2"><input type="text" id="edit-ent-${f.id}" value="${f.entrada || ''}" class="p-1 text-xs border rounded w-full"></td>
+                        <td class="p-2"><input type="text" id="edit-sal-${f.id}" value="${f.salida || ''}" class="p-1 text-xs border rounded w-full"></td>
+                        <td class="p-2 text-xs font-bold">${f.estado_pago}</td>
+                        <td class="p-2 text-right"><button onclick="guardarEdicionFichada(${f.id})" class="bg-slate-700 text-white px-2 py-1 rounded text-xs cursor-pointer">💾</button></td>
+                    </tr>
+                `;
+            });
+        }
+
+        async function guardarEdicionFichada(id) {
+            const ent = document.getElementById(`edit-ent-${id}`).value.trim();
+            const sal = document.getElementById(`edit-sal-${id}`).value.trim();
+            let horas = 0;
+
+            if (ent && sal) {
+                horas = parseFloat(((new Date(sal) - new Date(ent)) / (1000 * 60 * 60)).toFixed(2));
+            }
+
+            await _supabase.from('fichadas').update({
+                entrada: ent || null, salida: sal || null, horas_trabajadas: horas
+            }).eq('id', id);
+
+            alert("✏️ Horarios modificados y sincronizados.");
+            renderizarAdmin();
+        }
+    </script>
+</body>
+</html>
