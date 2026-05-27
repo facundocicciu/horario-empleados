@@ -126,14 +126,15 @@
 
             <div class="space-y-3 bg-slate-50 p-5 rounded-xl border">
                 <h3 class="text-lg font-bold text-slate-800">✏️ Editar Horarios / Fichadas de cada Día</h3>
+                <p class="text-xs text-gray-500 mb-2">Formato requerido para edición manual: <strong>AAAA-MM-DD HH:MM</strong> (Ej: 2026-05-24 14:30)</p>
                 <div class="overflow-x-auto border rounded-lg bg-white">
                     <table class="w-full text-sm text-left border-collapse">
                         <thead class="bg-slate-200 text-slate-700 text-xs border-b">
                             <tr>
                                 <th class="p-2.5">Empleado</th>
                                 <th class="p-2.5">Fecha</th>
-                                <th class="p-2.5">Hora Entrada (ISO)</th>
-                                <th class="p-2.5">Hora Salida (ISO)</th>
+                                <th class="p-2.5">Hora Entrada</th>
+                                <th class="p-2.5">Hora Salida</th>
                                 <th class="p-2.5">Estado</th>
                                 <th class="p-2.5 text-right">Acción</th>
                             </tr>
@@ -146,13 +147,28 @@
     </div>
 
     <script>
-        // URL de tu proyecto real de Supabase ya configurada
         const SUPABASE_URL = "https://otwgxcqqfnavowooyqsg.supabase.co";
-        // Aquí ya coloqué de manera segura tu clave pública anon
         const SUPABASE_ANON_KEY = "sb_publishable_MhRwEMyJoPi90pXhxjMOsA_WlIuiUxf";
         
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         let currentSession = null;
+
+        // Función auxiliar para obtener la hora de Argentina formateada como texto plano "YYYY-MM-DD HH:MM"
+        function obtenerHoraLocalArgentina() {
+            const ahora = new Date();
+            // Restamos 3 horas manualmente para fijar la estampa de Buenos Aires independientemente del servidor
+            const offsetArgentina = 3; 
+            const utc = ahora.getTime() + (ahora.getTimezoneOffset() * 60000);
+            const horaCorta = new Date(utc - (3600000 * offsetArgentina));
+
+            const anio = horaCorta.getFullYear();
+            const mes = String(horaCorta.getMonth() + 1).padStart(2, '0');
+            const dia = String(horaCorta.getDate()).padStart(2, '0');
+            const horas = String(horaCorta.getHours()).padStart(2, '0');
+            const minutos = String(horaCorta.getMinutes()).padStart(2, '0');
+
+            return `${anio}-${mes}-${dia} ${horas}:${minutos}`;
+        }
 
         window.onload = function() {
             const hoy = new Date();
@@ -218,13 +234,10 @@
                 }
                 const badgeColor = f.estado_pago === 'Abonado' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800';
                 
-                // Conversión y formateo explícito en huso horario local (es-AR)
-                const dateEntrada = f.entrada ? new Date(f.entrada) : null;
-                const dateSalida = f.salida ? new Date(f.salida) : null;
-
-                const fecha = dateEntrada ? dateEntrada.toLocaleDateString('es-AR') : '-';
-                const horaEntrada = dateEntrada ? dateEntrada.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) : '-';
-                const horaSalida = dateSalida ? dateSalida.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) : '-';
+                // Al ser texto plano, cortamos la string directamente sin transformaciones
+                const fecha = f.entrada ? f.entrada.substring(0, 10) : '-';
+                const horaEntrada = f.entrada ? f.entrada.substring(11, 16) : '-';
+                const horaSalida = f.salida ? f.salida.substring(11, 16) : '-';
 
                 tablaCuerpo.innerHTML += `
                     <tr>
@@ -243,9 +256,7 @@
         }
 
         async function fichar(tipo) {
-            // Obtenemos la estampa de tiempo adaptada al Husos Horarios de Argentina
-            const tzoffset = (new Date()).getTimezoneOffset() * 60000; 
-            const horaLocalIso = (new Date(Date.now() - tzoffset)).toISOString();
+            const cadenaHoraLocal = obtenerHoraLocalArgentina();
 
             if (tipo === 'entrada') {
                 const { data: abierta } = await _supabase
@@ -262,10 +273,10 @@
 
                 await _supabase.from('fichadas').insert({
                     empleado_id: currentSession.id,
-                    entrada: horaLocalIso,
+                    entrada: cadenaHoraLocal,
                     estado_pago: 'Pendiente'
                 });
-                alert('✅ Entrada guardada en Supabase.');
+                alert(`✅ Entrada guardada: ${cadenaHoraLocal.substring(11)}`);
 
             } else {
                 const { data: abierta } = await _supabase
@@ -280,15 +291,16 @@
                     return;
                 }
 
-                const entradaDate = new Date(abierta.entrada);
-                const salidaDate = new Date(); // Objeto de tiempo actual nativo del celular
+                // Cálculo preciso reemplazando el espacio por el marcador T para evaluar las marcas de tiempo nativas
+                const entradaDate = new Date(abierta.entrada.replace(' ', 'T'));
+                const salidaDate = new Date(cadenaHoraLocal.replace(' ', 'T'));
                 const totalHoras = parseFloat(((salidaDate - entradaDate) / (1000 * 60 * 60)).toFixed(2));
 
                 await _supabase.from('fichadas')
-                    .update({ salida: horaLocalIso, horas_trabajadas: totalHoras })
+                    .update({ salida: cadenaHoraLocal, horas_trabajadas: totalHoras })
                     .eq('id', abierta.id);
 
-                alert(`✅ Salida guardada. Horas: ${totalHoras}`);
+                alert(`✅ Salida guardada: ${cadenaHoraLocal.substring(11)}. Horas totales: ${totalHoras}`);
             }
             renderizarEmpleado();
         }
@@ -357,9 +369,11 @@
             const { data: fichadas } = await _supabase.from('fichadas').select('*').eq('empleado_id', empId);
             
             for (let f of fichadas) {
-                const fFecha = f.entrada.substring(0,10);
-                if ((!desde || fFecha >= desde) && (!hasta || fFecha <= hasta) && f.estado_pago === 'Pendiente' && f.entrada) {
-                    await _supabase.from('fichadas').update({ estado_pago: 'Abonado' }).eq('id', f.id);
+                if (f.entrada) {
+                    const fFecha = f.entrada.substring(0,10);
+                    if ((!desde || fFecha >= desde) && (!hasta || fFecha <= hasta) && f.estado_pago === 'Pendiente') {
+                        await _supabase.from('fichadas').update({ estado_pago: 'Abonado' }).eq('id', f.id);
+                    }
                 }
             }
             alert("✅ Pagos actualizados en la base de datos.");
@@ -377,7 +391,7 @@
             const cuerpo = document.getElementById('adm-tabla-edicion-fichadas');
             cuerpo.innerHTML = '';
             
-            fichadas.sort((a,b) => new Date(b.entrada) - new Date(a.entrada));
+            fichadas.sort((a,b) => new Date(b.entrada.replace(' ', 'T')) - new Date(b.entrada.replace(' ', 'T')));
 
             fichadas.forEach(f => {
                 const emp = emps.find(e => e.id === f.empleado_id);
@@ -402,7 +416,7 @@
             let horas = 0;
 
             if (ent && sal) {
-                horas = parseFloat(((new Date(sal) - new Date(ent)) / (1000 * 60 * 60)).toFixed(2));
+                horas = parseFloat(((new Date(sal.replace(' ', 'T')) - new Date(ent.replace(' ', 'T'))) / (1000 * 60 * 60)).toFixed(2));
             }
 
             await _supabase.from('fichadas').update({
