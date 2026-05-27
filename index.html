@@ -146,7 +146,7 @@
     </div>
 
     <script>
-        // ⚠️ REEMPLAZA ESTA URL CON LA DE TU PROYECTO (La encuentras en settings -> API)
+        // URL de tu proyecto real de Supabase ya configurada
         const SUPABASE_URL = "https://otwgxcqqfnavowooyqsg.supabase.co";
         // Aquí ya coloqué de manera segura tu clave pública anon
         const SUPABASE_ANON_KEY = "sb_publishable_MhRwEMyJoPi90pXhxjMOsA_WlIuiUxf";
@@ -218,9 +218,13 @@
                 }
                 const badgeColor = f.estado_pago === 'Abonado' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800';
                 
-                const fecha = f.entrada ? f.entrada.substring(0,10) : '-';
-                const horaEntrada = f.entrada ? f.entrada.substring(11,16) : '-';
-                const horaSalida = f.salida ? f.salida.substring(11,16) : '-';
+                // Conversión y formateo explícito en huso horario local (es-AR)
+                const dateEntrada = f.entrada ? new Date(f.entrada) : null;
+                const dateSalida = f.salida ? new Date(f.salida) : null;
+
+                const fecha = dateEntrada ? dateEntrada.toLocaleDateString('es-AR') : '-';
+                const horaEntrada = dateEntrada ? dateEntrada.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) : '-';
+                const horaSalida = dateSalida ? dateSalida.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) : '-';
 
                 tablaCuerpo.innerHTML += `
                     <tr>
@@ -239,7 +243,9 @@
         }
 
         async function fichar(tipo) {
-            const ahoraIso = new Date().toISOString();
+            // Obtenemos la estampa de tiempo adaptada al Husos Horarios de Argentina
+            const tzoffset = (new Date()).getTimezoneOffset() * 60000; 
+            const horaLocalIso = (new Date(Date.now() - tzoffset)).toISOString();
 
             if (tipo === 'entrada') {
                 const { data: abierta } = await _supabase
@@ -256,7 +262,7 @@
 
                 await _supabase.from('fichadas').insert({
                     empleado_id: currentSession.id,
-                    entrada: ahoraIso,
+                    entrada: horaLocalIso,
                     estado_pago: 'Pendiente'
                 });
                 alert('✅ Entrada guardada en Supabase.');
@@ -275,11 +281,11 @@
                 }
 
                 const entradaDate = new Date(abierta.entrada);
-                const salidaDate = new Date(ahoraIso);
+                const salidaDate = new Date(); // Objeto de tiempo actual nativo del celular
                 const totalHoras = parseFloat(((salidaDate - entradaDate) / (1000 * 60 * 60)).toFixed(2));
 
                 await _supabase.from('fichadas')
-                    .update({ salida: ahoraIso, horas_trabajadas: totalHoras })
+                    .update({ salida: horaLocalIso, horas_trabajadas: totalHoras })
                     .eq('id', abierta.id);
 
                 alert(`✅ Salida guardada. Horas: ${totalHoras}`);
@@ -352,7 +358,7 @@
             
             for (let f of fichadas) {
                 const fFecha = f.entrada.substring(0,10);
-                if ((!desde || fFecha >= desde) && (!hasta || fFecha <= hasta) && f.estado_pago === 'Pendiente') {
+                if ((!desde || fFecha >= desde) && (!hasta || fFecha <= hasta) && f.estado_pago === 'Pendiente' && f.entrada) {
                     await _supabase.from('fichadas').update({ estado_pago: 'Abonado' }).eq('id', f.id);
                 }
             }
@@ -361,7 +367,7 @@
         }
 
         function enviarWhatsAppRecibo(telefono, desde, hasta, horas, total) {
-            if (!telefono) { alert("❌ No hay teléfono."); return; }
+            if (!telefono) { alert("❌ El empleado no tiene teléfono cargado."); return; }
             const rango = (desde && hasta) ? `${desde} al ${hasta}` : "el período reciente";
             const mensaje = `hola! te abonamos las fechas ${rango} , con la cantidad de horas que sumaste que es ${horas.toFixed(2)} con un monto total de $${total.toFixed(2)} / por favor confirma recepcion! Gracias`;
             window.open(`https://api.whatsapp.com/send?phone=${telefono.replace(/\s+/g, '')}&text=${encodeURIComponent(mensaje)}`, '_blank');
@@ -371,6 +377,8 @@
             const cuerpo = document.getElementById('adm-tabla-edicion-fichadas');
             cuerpo.innerHTML = '';
             
+            fichadas.sort((a,b) => new Date(b.entrada) - new Date(a.entrada));
+
             fichadas.forEach(f => {
                 const emp = emps.find(e => e.id === f.empleado_id);
                 if (!emp) return;
